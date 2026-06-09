@@ -549,6 +549,11 @@
                     <input type="text" id="studentName" placeholder="예: 김민수">
                     <p class="hint">이름은 선생님만 볼 수 있어요. 친구들에게는 익명으로 보여요!</p>
                 </div>
+                <div class="form-group">
+                    <label>비밀번호 설정 및 입력</label>
+                    <input type="password" id="studentPassword" placeholder="비밀번호를 입력하세요" onkeypress="if(event.key === 'Enter') enterAsStudent()">
+                    <p class="hint" style="color: #ff6b6b; font-weight: bold;">처음 접속 시 입력한 비밀번호가 앞으로의 비밀번호로 설정됩니다!</p>
+                </div>
                 <button class="submit-btn" onclick="enterAsStudent()">입장하기 ✨</button>
             </div>
         </div>
@@ -702,20 +707,54 @@
         function showStudentLogin() {
             hideAll();
             document.getElementById('studentLogin').classList.remove('hidden');
+            document.getElementById('studentName').value = '';
+            document.getElementById('studentPassword').value = '';
         }
 
+        // ✨ 추가된 기능: 학생 이름 및 비밀번호 확인 로직
         function enterAsStudent() {
             const name = document.getElementById('studentName').value.trim();
-            if (!name) {
-                showToast('이름을 입력해주세요!');
+            const password = document.getElementById('studentPassword').value.trim();
+            
+            if (!name || !password) {
+                showToast('이름과 비밀번호를 모두 입력해주세요!');
                 return;
             }
+
+            // 파이어베이스에서 사용자 정보 확인
+            const userRef = database.ref('users/' + name);
+            userRef.once('value').then((snapshot) => {
+                if (snapshot.exists()) {
+                    // 기존 가입된 이름인 경우 비밀번호 확인
+                    if (snapshot.val().password === password) {
+                        completeStudentLogin(name);
+                    } else {
+                        showToast('비밀번호가 틀렸습니다. 다시 확인해주세요!');
+                    }
+                } else {
+                    // 처음 입력하는 이름인 경우 회원가입 처리
+                    userRef.set({ password: password }).then(() => {
+                        showToast(`환영합니다, ${name}님! 계정이 생성되었습니다.`);
+                        completeStudentLogin(name);
+                    });
+                }
+            }).catch((error) => {
+                showToast('로그인 중 오류가 발생했습니다.');
+                console.error(error);
+            });
+        }
+
+        // 로그인 완료 후 화면 처리
+        function completeStudentLogin(name) {
             currentUser = name;
             isTeacher = false;
             hideAll();
             document.getElementById('studentScreen').classList.remove('hidden');
             showTab('write');
             loadStudentStories();
+            
+            document.getElementById('studentName').value = '';
+            document.getElementById('studentPassword').value = '';
         }
 
         // 비밀번호 모달
